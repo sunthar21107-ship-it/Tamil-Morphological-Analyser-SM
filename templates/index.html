@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ta" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>தமிழ் பகுபத உறுப்பிலக்கணம் | Tamil Morphological Analyzer</title>
+
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Noto Serif Tamil for Tamil text, Cinzel for titles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Noto+Serif+Tamil:wght@300;400;500;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── DESIGN SYSTEM: Palm-leaf Manuscript meets Modern Scholarship ─────────── */
+    :root {
+      --ink:        #1a0a00;
+      --parchment:  #f5ead0;
+      --sienna:     #8b3a0f;
+      --gold:       #c8962a;
+      --gold-light: #e8c56a;
+      --rust:       #a84a1a;
+      --cream:      #fdf6e3;
+      --shadow:     rgba(26, 10, 0, 0.18);
+      --border:     rgba(200, 150, 42, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      background-color: var(--cream);
+      background-image:
+        radial-gradient(ellipse at 10% 20%, rgba(200,150,42,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 90% 80%, rgba(139,58,15,0.07) 0%, transparent 50%),
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c8962a' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      color: var(--ink);
+      font-family: 'Crimson Pro', Georgia, serif;
+      min-height: 100vh;
+    }
+
+    /* Decorative border: traditional kolam-inspired SVG repeated */
+    .border-ornament {
+      height: 8px;
+      background: repeating-linear-gradient(
+        90deg,
+        var(--gold) 0px, var(--gold) 4px,
+        transparent 4px, transparent 12px,
+        var(--sienna) 12px, var(--sienna) 16px,
+        transparent 16px, transparent 24px
+      );
+      opacity: 0.7;
+    }
+
+    /* Main title font */
+    .font-cinzel  { font-family: 'Cinzel', serif; }
+    .font-tamil   { font-family: 'Noto Serif Tamil', serif; }
+    .font-crimson { font-family: 'Crimson Pro', Georgia, serif; }
+
+    /* Parchment card */
+    .card-parchment {
+      background: var(--parchment);
+      border: 1px solid var(--border);
+      box-shadow:
+        0 2px 0 var(--gold),
+        0 4px 24px var(--shadow),
+        inset 0 0 60px rgba(200,150,42,0.04);
+      border-radius: 2px;
+      position: relative;
+    }
+    .card-parchment::before {
+      content: '';
+      position: absolute;
+      inset: 5px;
+      border: 1px solid rgba(200,150,42,0.2);
+      border-radius: 1px;
+      pointer-events: none;
+    }
+
+    /* Input */
+    .tamil-input {
+      font-family: 'Noto Serif Tamil', serif;
+      font-size: 1.6rem;
+      background: rgba(255,255,255,0.7);
+      border: 2px solid var(--gold);
+      border-radius: 2px;
+      color: var(--ink);
+      transition: all 0.3s ease;
+      outline: none;
+      caret-color: var(--sienna);
+      letter-spacing: 0.02em;
+    }
+    .tamil-input:focus {
+      border-color: var(--sienna);
+      background: rgba(255,255,255,0.95);
+      box-shadow: 0 0 0 3px rgba(139,58,15,0.12), 0 2px 12px rgba(200,150,42,0.2);
+    }
+    .tamil-input::placeholder { color: rgba(26,10,0,0.35); font-size: 1.2rem; }
+
+    /* Analyze button */
+    .btn-analyze {
+      background: linear-gradient(135deg, var(--sienna) 0%, #6b2a06 100%);
+      color: var(--gold-light);
+      font-family: 'Cinzel', serif;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      border: 1px solid var(--gold);
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-analyze::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+    }
+    .btn-analyze:hover {
+      background: linear-gradient(135deg, #a84a1a 0%, #8b3a0f 100%);
+      box-shadow: 0 4px 20px rgba(139,58,15,0.4);
+      transform: translateY(-1px);
+    }
+    .btn-analyze:active { transform: translateY(0); }
+    .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Morpheme card */
+    .morpheme-card {
+      border-radius: 2px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      animation: fadeSlideUp 0.4s ease both;
+    }
+    .morpheme-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px var(--shadow);
+    }
+
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes shimmer {
+      0%   { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+
+    /* Color themes per morpheme */
+    .m-paguthi   { background: #fff8ee; border-left: 4px solid #c8962a; --delay: 0.05s; }
+    .m-vikuthi   { background: #fef3ee; border-left: 4px solid #c85a2a; --delay: 0.10s; }
+    .m-idainilai { background: #eef6ff; border-left: 4px solid #2a6ac8; --delay: 0.15s; }
+    .m-sandhi    { background: #eefff4; border-left: 4px solid #2ac870; --delay: 0.20s; }
+    .m-sariyai   { background: #f3eeff; border-left: 4px solid #8a2ac8; --delay: 0.25s; }
+    .m-vikaram   { background: #fff0f0; border-left: 4px solid #c82a2a; --delay: 0.30s; }
+
+    .morpheme-card { animation-delay: var(--delay, 0); }
+
+    /* Badge dots */
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+    /* Tense badge */
+    .tense-past    { background: #7c3a0f; color: #fde8c8; }
+    .tense-present { background: #0f4a7c; color: #c8e8fd; }
+    .tense-future  { background: #0f7c4a; color: #c8fddf; }
+    .tense-none    { background: #4a4a4a; color: #e8e8e8; }
+
+    /* Confidence badge */
+    .conf-high   { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .conf-algo   { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+
+    /* Example chips */
+    .example-chip {
+      font-family: 'Noto Serif Tamil', serif;
+      font-size: 0.95rem;
+      background: rgba(200,150,42,0.12);
+      border: 1px solid rgba(200,150,42,0.3);
+      border-radius: 2px;
+      color: var(--sienna);
+      cursor: pointer;
+      padding: 4px 12px;
+      transition: all 0.2s ease;
+    }
+    .example-chip:hover {
+      background: var(--sienna);
+      color: var(--gold-light);
+      border-color: var(--sienna);
+    }
+
+    /* Result word display */
+    .result-word {
+      font-family: 'Noto Serif Tamil', serif;
+      font-size: 2.8rem;
+      font-weight: 700;
+      color: var(--sienna);
+      letter-spacing: 0.04em;
+      text-shadow: 1px 2px 0 rgba(200,150,42,0.15);
+    }
+
+    /* Decorative divider */
+    .divider-ornament {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--gold);
+      font-size: 1.2rem;
+    }
+    .divider-ornament::before,
+    .divider-ornament::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+
+    /* Loading spinner */
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid rgba(232,197,106,0.3);
+      border-top-color: var(--gold-light);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--cream); }
+    ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 3px; }
+
+    /* Error state */
+    .error-card {
+      background: #fff5f5;
+      border: 1px solid #fc8181;
+      border-left: 4px solid #e53e3e;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .result-word { font-size: 2rem; }
+      .tamil-input { font-size: 1.2rem; }
+    }
+  </style>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink:      '#1a0a00',
+            parchment:'#f5ead0',
+            sienna:   '#8b3a0f',
+            gold:     '#c8962a',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="min-h-screen py-8 px-4">
+
+  <!-- TOP ORNAMENT BAR -->
+  <div class="border-ornament mb-0"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       HEADER
+  ═══════════════════════════════════════════════════════════ -->
+  <header class="max-w-4xl mx-auto pt-10 pb-6 text-center">
+
+    <!-- Tamil decorative symbol -->
+    <div class="font-tamil text-5xl text-gold mb-2 select-none" style="text-shadow: 0 2px 8px rgba(200,150,42,0.3);">ௐ</div>
+
+    <h1 class="font-cinzel text-3xl md:text-4xl font-bold text-sienna tracking-wide leading-tight">
+      Universal Tamil
+      <span class="text-gold">Morphological</span> Analyzer
+    </h1>
+
+    <p class="font-tamil text-xl md:text-2xl text-sienna mt-2 font-medium tracking-widest">
+      பகுபத உறுப்பிலக்கணம்
+    </p>
+
+    <p class="font-crimson text-base text-stone-600 mt-3 max-w-xl mx-auto italic">
+      Decompose any Tamil verb into its six grammatical morphemes —
+      as prescribed in classical Tamil grammatical tradition.
+    </p>
+
+    <!-- Decorative Tolkāppiyam reference -->
+    <div class="divider-ornament mt-6 max-w-lg mx-auto">
+      <span class="font-tamil text-sm text-stone-500" style="white-space: nowrap;">
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SEARCH SECTION
+  ═══════════════════════════════════════════════════════════ -->
+  <main class="max-w-4xl mx-auto">
+
+    <!-- Search Card -->
+    <div class="card-parchment p-6 md:p-8 mb-6">
+
+      <label class="block font-cinzel text-sm tracking-widest text-sienna mb-3 uppercase">
+        Enter a Tamil Word
+        <span class="font-tamil text-base normal-case tracking-normal ml-1 text-stone-500">(தமிழ் சொல் உள்ளிடுக)</span>
+      </label>
+
+      <div class="flex flex-col sm:flex-row gap-3">
+        <input
+          id="wordInput"
+          type="text"
+          class="tamil-input flex-1 px-5 py-3"
+          placeholder="உ.ம்: கண்டான், வந்தாள், படிக்கிறான்..."
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+          dir="auto"
+        />
+        <button
+          id="analyzeBtn"
+          class="btn-analyze px-8 py-3 text-base"
+          onclick="analyzeWord()"
+        >
+          <span id="btnText">Analyze &nbsp;▶</span>
+          <div id="btnSpinner" class="spinner hidden mx-auto"></div>
+        </button>
+      </div>
+
+      <!-- Example chips -->
+      <div class="mt-4">
+        <p class="font-cinzel text-xs text-stone-400 tracking-widest uppercase mb-2">Quick Examples:</p>
+        <div id="exampleChips" class="flex flex-wrap gap-2">
+          <!-- Populated via JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         RESULT SECTION (hidden until analysis)
+    ═══════════════════════════════════════════════════════ -->
+    <div id="resultSection" class="hidden">
+
+      <!-- Result Header Card -->
+      <div class="card-parchment p-6 md:p-8 mb-4">
+
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p class="font-cinzel text-xs tracking-widest text-stone-400 uppercase mb-1">Analyzed Word</p>
+            <div id="resultWord" class="result-word"></div>
+            <div id="resultMeaning" class="font-crimson text-lg text-stone-600 italic mt-1"></div>
+          </div>
+
+          <div class="flex flex-col gap-2 items-start sm:items-end">
+            <!-- Tense badge -->
+            <div id="tenseBadge" class="px-3 py-1 rounded-full text-sm font-cinzel tracking-wide font-semibold"></div>
+            <!-- Confidence badge -->
+            <div id="confBadge" class="px-3 py-1 rounded-sm text-xs font-crimson"></div>
+          </div>
+        </div>
+
+        <!-- Analysis note -->
+        <p id="analysisNote" class="font-crimson text-sm text-stone-500 italic mt-4 pt-4 border-t border-stone-200"></p>
+      </div>
+
+      <!-- ── SIX MORPHEME CARDS ── -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+
+        <!-- 1. Paguthi -->
+        <div class="morpheme-card m-paguthi p-5" style="animation-delay:0.05s">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="dot" style="background:#c8962a"></div>
+            <span class="font-cinzel text-xs tracking-widest text-stone-500 uppercase">Paguthi</span>
+          </div>
+          <p class="font-tamil text-2xl font-semibold text-sienna mb-1" id="val-paguthi">—</p>
+          <p class="font-crimson text-sm text-stone-600">Root (பகுதி)</p>
+          <p class="font-crimson text-xs text-stone-400 mt-1 italic">The original verbal/nominal root</p>
+        </div>
+
+        <!-- 2. Vikuthi -->
+        <div class="morpheme-card m-vikuthi p-5" style="animation-delay:0.10s">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="dot" style="background:#c85a2a"></div>
+            <span class="font-cinzel text-xs tracking-widest text-stone-500 uppercase">Vikuthi</span>
+          </div>
+          <p class="font-tamil text-xl font-semibold" style="color:#c85a2a" id="val-vikuthi">—</p>
+          <p class="font-crimson text-sm text-stone-600">Suffix (விகுதி)</p>
+          <p class="font-crimson text-xs text-stone-400 mt-1 italic">Person · Gender · Number marker</p>
+        </div>
+
+        <!-- 3. Idainilai -->
+        <div class="morpheme-card m-idainilai p-5" style="animation-delay:0.15s">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="dot" style="background:#2a6ac8"></div>
+            <span class="font-cinzel text-xs tracking-widest text-stone-500 uppercase">Idainilai</span>
+          </div>
+          <p class="font-tamil text-xl font-semibold" style="color:#2a6ac8" id="val-idainilai">—</p>
+          <p class="font-crimson text-sm text-stone-600">Tense Infix (இடைநிலை)</p>
+          <p class="font-crimson text-xs text-stone-400 mt-1 italic">Past · Present · Future marker</p>
+        </div>
+
+        <!-- 4. Sandhi -->
+        <div class="morpheme-card m-sandhi p-5" style="animation-delay:0.20s">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="dot" style="background:#2ac870"></div>
+            <span class="font-cinzel text-xs tracking-widest text-stone-500 uppercase">Sandhi</span>
+          </div>
+          <p class="font-crimson text-sm font-semibold" style="color:#1a7a40" id="val-sandhi">—</p>
+          <p class="font-crimson text-sm text-stone-600 mt-1">Euphonic Linker (சந்தி)</p>
+          <p class="font-crimson text-xs text-stone-400 mt-1 italic">Phonological junction rule</p>
+        </div>
+
+        <!-- 5. Sariyai -->
+        <div class="morpheme-card m-sariyai p-5" style="animation-delay:0.25s">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="dot" style="background:#8a2ac8"></div>
+            <span class="font-cinzel text-xs tracking-widest text-stone-500 uppercase">Sariyai</span>
+          </div>
+          <p class="font-crimson text-sm font-semibold" style="color:#6a1a9a" id="val-sariyai">—</p>
+          <p class="font-crimson text-sm text-stone-600 mt-1">Increment (சாரியை)</p>
+          <p class="font-crimson text-xs text-stone-400 mt-1 italic">Inflexional increment morpheme</p>
+        </div>
+
+        <!-- 6. Vikaram -->
+        <div class="morpheme-card m-vikaram p-5" style="animation-delay:0.30s">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="dot" style="background:#c82a2a"></div>
+            <span class="font-cinzel text-xs tracking-widest text-stone-500 uppercase">Vikaram</span>
+          </div>
+          <p class="font-crimson text-sm font-semibold" style="color:#9a1a1a" id="val-vikaram">—</p>
+          <p class="font-crimson text-sm text-stone-600 mt-1">Root Mutation (விகாரம்)</p>
+          <p class="font-crimson text-xs text-stone-400 mt-1 italic">Phonemic change in root form</p>
+        </div>
+
+      </div><!-- /grid -->
+
+      <!-- Morphological Structure Diagram -->
+      <div class="card-parchment p-5 mb-6">
+        <p class="font-cinzel text-xs tracking-widest text-stone-400 uppercase mb-4">Word Structure Diagram</p>
+        <div id="structureDiagram" class="overflow-x-auto py-2">
+          <!-- populated by JS -->
+        </div>
+      </div>
+
+    </div><!-- /#resultSection -->
+
+    <!-- ═══════════════════════════════════════════════════════
+         ERROR SECTION
+    ═══════════════════════════════════════════════════════ -->
+    <div id="errorSection" class="hidden error-card p-5 rounded-sm mb-6">
+      <p class="font-cinzel text-sm text-red-700 font-semibold">Analysis Error</p>
+      <p id="errorMsg" class="font-crimson text-stone-600 mt-1"></p>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         INFO / LEGEND SECTION
+    ═══════════════════════════════════════════════════════ -->
+    <div class="card-parchment p-6 md:p-8 mt-2">
+
+      <div class="divider-ornament mb-6">
+        <span class="font-cinzel text-xs tracking-widest text-stone-500 uppercase">Grammar Reference</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Tense Markers -->
+        <div>
+          <h3 class="font-cinzel text-sm text-sienna tracking-wide mb-3 font-semibold">
+            Tense Markers (இடைநிலைகள்)
+          </h3>
+          <table class="w-full text-sm font-crimson">
+            <thead>
+              <tr class="border-b border-stone-200">
+                <th class="text-left py-1 text-stone-500 font-semibold">Tense</th>
+                <th class="text-left py-1 text-stone-500 font-semibold">Marker</th>
+                <th class="text-left py-1 text-stone-500 font-semibold">Example</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-stone-100">
+                <td class="py-1.5 text-stone-600">Past (இறந்தகாலம்)</td>
+                <td class="py-1.5 font-tamil text-blue-700">த், ட், ற், இன்</td>
+                <td class="py-1.5 font-tamil text-sienna">கண்டான்</td>
+              </tr>
+              <tr class="border-b border-stone-100">
+                <td class="py-1.5 text-stone-600">Present (நிகழ்காலம்)</td>
+                <td class="py-1.5 font-tamil text-blue-700">கிறு, கின்று</td>
+                <td class="py-1.5 font-tamil text-sienna">படிக்கிறான்</td>
+              </tr>
+              <tr>
+                <td class="py-1.5 text-stone-600">Future (எதிர்காலம்)</td>
+                <td class="py-1.5 font-tamil text-blue-700">ப், வ்</td>
+                <td class="py-1.5 font-tamil text-sienna">படிப்பான்</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Personal Endings -->
+        <div>
+          <h3 class="font-cinzel text-sm text-sienna tracking-wide mb-3 font-semibold">
+            Personal Endings (விகுதிகள்)
+          </h3>
+          <table class="w-full text-sm font-crimson">
+            <thead>
+              <tr class="border-b border-stone-200">
+                <th class="text-left py-1 text-stone-500 font-semibold">Person</th>
+                <th class="text-left py-1 text-stone-500 font-semibold">Suffix</th>
+                <th class="text-left py-1 text-stone-500 font-semibold">Pronoun</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-stone-100">
+                <td class="py-1 text-stone-600">1sg</td>
+                <td class="py-1 font-tamil text-rust">-ேன்</td>
+                <td class="py-1 font-tamil">நான்</td>
+              </tr>
+              <tr class="border-b border-stone-100">
+                <td class="py-1 text-stone-600">1pl</td>
+                <td class="py-1 font-tamil text-rust">-ோம்</td>
+                <td class="py-1 font-tamil">நாம்</td>
+              </tr>
+              <tr class="border-b border-stone-100">
+                <td class="py-1 text-stone-600">3m.sg</td>
+                <td class="py-1 font-tamil text-rust">-ான்</td>
+                <td class="py-1 font-tamil">அவன்</td>
+              </tr>
+              <tr class="border-b border-stone-100">
+                <td class="py-1 text-stone-600">3f.sg</td>
+                <td class="py-1 font-tamil text-rust">-ாள்</td>
+                <td class="py-1 font-tamil">அவள்</td>
+              </tr>
+              <tr>
+                <td class="py-1 text-stone-600">3hon</td>
+                <td class="py-1 font-tamil text-rust">-ார்</td>
+                <td class="py-1 font-tamil">அவர்</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div><!-- /grid -->
+
+      <!-- Root Mutations -->
+      <div class="mt-6">
+        <h3 class="font-cinzel text-sm text-sienna tracking-wide mb-3 font-semibold">
+          Common Root Mutations (விகாரங்கள்)
+        </h3>
+        <div class="flex flex-wrap gap-3">
+          <span class="font-tamil text-sm bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-sm text-stone-700">காண் → கண்</span>
+          <span class="font-tamil text-sm bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-sm text-stone-700">வா → வந்</span>
+          <span class="font-tamil text-sm bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-sm text-stone-700">நில் → நின்</span>
+          <span class="font-tamil text-sm bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-sm text-stone-700">செல் → சென்</span>
+          <span class="font-tamil text-sm bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-sm text-stone-700">சொல் → சொன்</span>
+          <span class="font-tamil text-sm bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-sm text-stone-700">கேள் → கேட்</span>
+          <span class="font-tamil text-sm bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-sm text-stone-700">விடு → விட்</span>
+          <span class="font-tamil text-sm bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-sm text-stone-700">வெல் → வென்</span>
+        </div>
+      </div>
+
+    </div><!-- /card -->
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="max-w-4xl mx-auto mt-8 pb-6 text-center">
+    <div class="border-ornament mb-4"></div>
+    <p class="font-cinzel text-xs tracking-widest text-stone-400 uppercase">
+      DEPARTMENT OF TAMIL (REGULAR) SBK COLLEGE ARUPPUKOTTAI
+    </p>
+    <p class="font-tamil text-sm text-stone-400 mt-1">
+      தமிழ் துறை
+    </p>
+</footer>
+    </p>
+  </footer>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       JAVASCRIPT
+  ═══════════════════════════════════════════════════════════ -->
+  <script>
+    // ─── Load example chips ─────────────────────────────────────────
+    async function loadExamples() {
+      try {
+        const res = await fetch('/examples');
+        const data = await res.json();
+        const container = document.getElementById('exampleChips');
+        container.innerHTML = '';
+        data.examples.forEach(word => {
+          const chip = document.createElement('button');
+          chip.className = 'example-chip';
+          chip.textContent = word;
+          chip.onclick = () => {
+            document.getElementById('wordInput').value = word;
+            analyzeWord();
+          };
+          container.appendChild(chip);
+        });
+      } catch (e) {
+        console.warn('Could not load examples:', e);
+      }
+    }
+
+    // ─── Main analyze function ───────────────────────────────────────
+    async function analyzeWord() {
+      const word = document.getElementById('wordInput').value.trim();
+      if (!word) {
+        showError('Please enter a Tamil word to analyze.');
+        return;
+      }
+
+      setLoading(true);
+      hideAll();
+
+      try {
+        const res = await fetch('/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({ word })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Server error');
+        }
+
+        const data = await res.json();
+
+        if (data.error) {
+          showError(data.error);
+        } else {
+          displayResult(data);
+        }
+
+      } catch (e) {
+        showError(e.message || 'Network error. Is the Flask server running?');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // ─── Display morphological result ───────────────────────────────
+    function displayResult(data) {
+      // Header info
+      document.getElementById('resultWord').textContent = data.word || '—';
+
+      const meaning = data.meaning && data.meaning !== '—'
+        ? `"${data.meaning}"`
+        : 'Meaning not in database';
+      document.getElementById('resultMeaning').textContent = meaning;
+
+      // Tense badge
+      const tenseBadge = document.getElementById('tenseBadge');
+      const tenseMap = {
+        past:    ['இறந்தகாலம் (Past)',    'tense-past'],
+        present: ['நிகழ்காலம் (Present)', 'tense-present'],
+        future:  ['எதிர்காலம் (Future)',  'tense-future'],
+      };
+      if (data.tense && tenseMap[data.tense]) {
+        const [label, cls] = tenseMap[data.tense];
+        tenseBadge.textContent = label;
+        tenseBadge.className = `px-3 py-1 rounded-full text-sm font-cinzel tracking-wide font-semibold ${cls}`;
+        tenseBadge.classList.remove('hidden');
+      } else {
+        tenseBadge.classList.add('hidden');
+      }
+
+      // Confidence badge
+      const confBadge = document.getElementById('confBadge');
+      const isHigh = data.confidence && data.confidence.includes('high');
+      confBadge.textContent = isHigh ? '✓ Database Match' : '⚙ Algorithmic';
+      confBadge.className = `px-3 py-1 rounded-sm text-xs font-crimson ${isHigh ? 'conf-high' : 'conf-algo'}`;
+
+      // Analysis note
+      document.getElementById('analysisNote').textContent = data.analysis_note || '';
+
+      // Fill morpheme cards
+      setText('val-paguthi',   data.paguthi);
+      setText('val-vikuthi',   data.vikuthi);
+      setText('val-idainilai', data.idainilai);
+      setText('val-sandhi',    data.sandhi);
+      setText('val-sariyai',   data.sariyai);
+      setText('val-vikaram',   data.vikaram);
+
+      // Structure diagram
+      buildDiagram(data);
+
+      // Show section
+      document.getElementById('resultSection').classList.remove('hidden');
+      document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function setText(id, val) {
+      document.getElementById(id).textContent = (val && val !== '—') ? val : '—';
+    }
+
+    // ─── Word Structure Diagram ──────────────────────────────────────
+    function buildDiagram(data) {
+      const container = document.getElementById('structureDiagram');
+
+      // Define parts with colors
+      const parts = [
+        { key: 'paguthi',   label: 'பகுதி',    color: '#c8962a', desc: 'Root' },
+        { key: 'idainilai', label: 'இடைநிலை', color: '#2a6ac8', desc: 'Infix' },
+        { key: 'sariyai',   label: 'சாரியை',  color: '#8a2ac8', desc: 'Sariyai' },
+        { key: 'vikuthi',   label: 'விகுதி',   color: '#c85a2a', desc: 'Suffix' },
+      ];
+
+      let html = '<div class="flex flex-wrap items-end gap-1 justify-center">';
+
+      parts.forEach((part, i) => {
+        const val = data[part.key];
+        // Extract the raw Tamil value (before any parentheses)
+        const tamilVal = val && val !== '—'
+          ? val.split(' ')[0].replace(/[()]/g, '')
+          : null;
+
+        if (tamilVal && tamilVal !== '—') {
+          html += `
+            <div class="flex flex-col items-center" style="min-width: 60px">
+              <span class="font-cinzel text-xs text-stone-400 mb-1" style="font-size:0.6rem;">${part.desc}</span>
+              <div class="px-3 py-2 text-white font-tamil text-xl font-semibold rounded-sm"
+                   style="background:${part.color}; box-shadow: 0 2px 6px ${part.color}55;">
+                ${tamilVal}
+              </div>
+              <span class="font-tamil text-xs text-stone-500 mt-1">${part.label}</span>
+            </div>`;
+
+          if (i < parts.length - 1) {
+            html += `<div class="text-stone-300 text-xl mb-6">+</div>`;
+          }
+        }
+      });
+
+      // Add equals sign and full word
+      html += `
+        <div class="text-stone-300 text-xl mb-6">=</div>
+        <div class="flex flex-col items-center">
+          <span class="font-cinzel text-xs text-stone-400 mb-1" style="font-size:0.6rem;">Full Word</span>
+          <div class="px-4 py-2 font-tamil text-xl font-bold rounded-sm"
+               style="background:#1a0a00; color:#e8c56a; box-shadow: 0 2px 8px rgba(26,10,0,0.3);">
+            ${data.word}
+          </div>
+          <span class="font-tamil text-xs text-stone-500 mt-1">சொல்</span>
+        </div>
+      `;
+
+      html += '</div>';
+
+      // Add vikaram note if present
+      if (data.vikaram && data.vikaram !== '—') {
+        html += `
+          <div class="mt-3 text-center">
+            <span class="font-crimson text-xs text-stone-500 italic">
+              ⚠ Vikaram (விகாரம்): ${data.vikaram}
+            </span>
+          </div>`;
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ─── UI helpers ─────────────────────────────────────────────────
+    function setLoading(on) {
+      const btn   = document.getElementById('analyzeBtn');
+      const txt   = document.getElementById('btnText');
+      const spin  = document.getElementById('btnSpinner');
+      btn.disabled = on;
+      txt.classList.toggle('hidden', on);
+      spin.classList.toggle('hidden', !on);
+    }
+
+    function hideAll() {
+      document.getElementById('resultSection').classList.add('hidden');
+      document.getElementById('errorSection').classList.add('hidden');
+    }
+
+    function showError(msg) {
+      document.getElementById('errorMsg').textContent = msg;
+      document.getElementById('errorSection').classList.remove('hidden');
+    }
+
+    // ─── Enter key support ───────────────────────────────────────────
+    document.getElementById('wordInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') analyzeWord();
+    });
+
+    // ─── Init ────────────────────────────────────────────────────────
+    loadExamples();
+  </script>
+
+</body>
+</html>
